@@ -326,15 +326,62 @@
         }
 
         // --- GESTIÓN DE INTERACCIÓN ---
-        function iniciarSistema() {
+        async function iniciarSistema() {
             document.getElementById('start-overlay').style.display = 'none';
+            
+            // 1. Iniciar reloj
             updateClock();
+            
+            // 2. Iniciar listener de Firebase
             if(window.iniciarListener) window.iniciarListener();
             
-            const a = document.getElementById('audio-test');
-            a.play().catch(e => console.log("Error audio:", e));
+            // 3. HACK PARA IOS SAFARI: "Warm-up" de audios
+            // Reproducimos ambos audios silenciados inmediatamente al hacer click
+            // Esto le dice a Safari: "El usuario autorizó estos archivos"
+            const audios = [
+                document.getElementById('audio-alert'),
+                document.getElementById('audio-test')
+            ];
+
+            audios.forEach(audio => {
+                audio.muted = true; // Silenciar para no asustar
+                audio.play().then(() => {
+                    // Si reproduce con éxito, pausamos y quitamos silencio
+                    // para que estén listos cuando llegue la alerta real
+                    audio.pause();
+                    audio.currentTime = 0;
+                    audio.muted = false; 
+                }).catch(error => {
+                    console.log("Error desbloqueando audio en iOS:", error);
+                });
+            });
+
+            // 4. EVITAR QUE LA PANTALLA SE APAGUE (Wake Lock API)
+            // En iPhone, si se apaga la pantalla, se corta la conexión a Firebase.
+            activarWakeLock();
         }
 
+        // Función para mantener pantalla encendida
+        async function activarWakeLock() {
+            try {
+                if ('wakeLock' in navigator) {
+                    let wakeLock = await navigator.wakeLock.request('screen');
+                    console.log("Pantalla mantenida encendida (WakeLock activo)");
+                    
+                    // Si el usuario minimiza y vuelve, reactivar
+                    document.addEventListener('visibilitychange', async () => {
+                        if (wakeLock !== null && document.visibilityState === 'visible') {
+                            wakeLock = await navigator.wakeLock.request('screen');
+                        }
+                    });
+                } else {
+                    console.warn("Este navegador no soporta WakeLock (La pantalla podría apagarse)");
+                }
+            } catch (err) {
+                console.error(`${err.name}, ${err.message}`);
+            }
+        }
+        
         function cerrarAlerta() {
             document.getElementById('alert-view').style.display = 'none';
             const audio = document.getElementById('audio-alert');

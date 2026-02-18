@@ -294,12 +294,14 @@
             alertView.style.display = 'flex';
             
             audioAlert.muted = false;
+            audioAlert.volume = 1.0;
             audioAlert.currentTime = 0;
             audioAlert.play().catch(e => console.log("Error audio:", e));
         }
 
         function activarPrueba() {
             audioAlert.muted = false;
+            audioAlert.volume = 1.0;
             audioTest.currentTime = 0;
             audioTest.play().catch(e => console.log("Error audio:", e));
         }

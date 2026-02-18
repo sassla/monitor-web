@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="es-MX">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Monitor SASSLA</title>
+    <style>
+        /* --- RESET & BASE --- */
+        :root {
+            --bg-color: #121212;
+            --text-color: #ffffff;
+            --alert-bg: #ff0000;
+            --font-main: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            --strip-width: 8px;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            font-family: var(--font-main);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: background-color 0.3s ease;
+        }
+
+        /* --- INDICADOR DE CONEXIÓN (La Franja) --- */
+        #connection-strip {
+            position: fixed;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            width: var(--strip-width);
+            background-color: #dc3545; /* Rojo por defecto (Desconectado) */
+            z-index: 1000;
+            transition: background-color 0.5s;
+        }
+        #connection-strip.connected { background-color: #28a745; }
+
+        /* --- TEXTO LEGAL INFERIOR (NUEVO) --- */
+        #footer-disclaimer {
+            position: fixed;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            color: rgba(255, 255, 255, 0.8); /* Un poco transparente para no distraer */
+            font-size: 0.85rem;
+            text-align: center;
+            z-index: 1600; /* Visible sobre la alerta (z-500) y la franja (z-1000) */
+            pointer-events: none; /* Permite clicks a través del texto si tapa algo */
+            width: 100%;
+            padding: 0 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 500;
+        }
+
+        /* --- VISTA RELOJ --- */
+        #clock-view {
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+
+        #time-display {
+            font-size: 15vw; /* Responsivo gigante */
+            font-weight: 700;
+            font-variant-numeric: tabular-nums;
+            line-height: 1;
+            letter-spacing: -2px;
+        }
+
+        #date-display {
+            font-size: 3vw;
+            font-weight: 300;
+            opacity: 0.8;
+            margin-top: 10px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        /* --- VISTA ALERTA --- */
+        #alert-view {
+            position: fixed;
+            top: 0; left: 0; right: 0; bottom: 0;
+            background-color: var(--alert-bg);
+            display: none; /* Oculto por defecto */
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 500;
+            text-align: center;
+            padding-left: var(--strip-width); /* Respetar la franja */
+        }
+
+        .alert-title {
+            font-size: 10vw;
+            font-weight: 900;
+            text-transform: uppercase;
+            animation: pulse 1s infinite;
+        }
+
+        .alert-info {
+            font-size: 3vw;
+            margin-top: 20px;
+        }
+
+        #close-btn {
+            margin-top: 50px;
+            padding: 15px 40px;
+            font-size: 1.5rem;
+            border: 2px solid white;
+            background: transparent;
+            color: white;
+            cursor: pointer;
+            text-transform: uppercase;
+            font-weight: bold;
+            border-radius: 50px;
+            transition: background 0.2s;
+        }
+
+        #close-btn:active { background: rgba(255,255,255,0.3); }
+
+        /* --- PANTALLA DE INICIO (Autoplay Policy) --- */
+        #start-overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.95);
+            z-index: 2000;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+        }
+        
+        .start-btn {
+            padding: 20px 40px;
+            font-size: 1.5rem;
+            background: #007bff;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        /* --- ANIMACIONES --- */
+        @keyframes pulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.05); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        /* Media queries para móviles */
+        @media (max-width: 600px) {
+            #time-display { font-size: 22vw; }
+            #date-display { font-size: 5vw; }
+            .alert-title { font-size: 14vw; }
+            .alert-info { font-size: 6vw; }
+            #footer-disclaimer { font-size: 0.7rem; bottom: 15px; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="connection-strip"></div>
+    
+    <div id="footer-disclaimer">SASSLA APP de México | Sujeto a errores</div>
+
+    <div id="start-overlay">
+        <h2 style="margin-bottom: 20px;">Monitor SASSLA</h2>
+        <button class="start-btn" onclick="iniciarSistema()">CONECTAR</button>
+    </div>
+
+    <div id="clock-view">
+        <div id="time-display">00:00:00</div>
+        <div id="date-display">Cargando...</div>
+    </div>
+
+    <div id="alert-view">
+        <div class="alert-title">ALERTA<br>SÍSMICA</div>
+        <div class="alert-info" id="alert-timestamp">--/--/---- --:--:--</div>
+        <button id="close-btn" onclick="cerrarAlerta()">CERRAR / SILENCIAR</button>
+    </div>
+
+    <audio id="audio-alert" src="alerta.mp3"></audio>
+    <audio id="audio-test" src="prueba.mp3"></audio>
+
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-app.js";
+        import { getFirestore, doc, onSnapshot } from "https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore.js";
+
+        // --- 1. CONFIGURACIÓN FIREBASE ---
+        const firebaseConfig = {
+            apiKey: "AIzaSyBaE7wpmdTe4eTIDoxb80Q0CfoVZd1Y2Ow",
+            authDomain: "safelivealert-5.firebaseapp.com",
+            projectId: "safelivealert-5",
+            storageBucket: "safelivealert-5.appspot.com",
+            messagingSenderId: "991156257190",
+            appId: "1:991156257190:web:493e8c38ac72aa4d918f67",
+            measurementId: "G-4ZYK3PJDRV"
+        };
+
+        // Inicializar
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+
+        // Referencia al documento
+        const docRef = doc(db, "Web", "Messages");
+        
+        // Elementos del DOM
+        const strip = document.getElementById('connection-strip');
+        const alertView = document.getElementById('alert-view');
+        const alertTimestamp = document.getElementById('alert-timestamp');
+        const audioAlert = document.getElementById('audio-alert');
+        const audioTest = document.getElementById('audio-test');
+
+        let ultimoTimestampProcesado = 0;
+
+        // --- 2. LÓGICA DE FIRESTORE ---
+        window.iniciarListener = () => {
+            onSnapshot(docRef, (doc) => {
+                // CORRECCIÓN: Validar que los datos no vengan de la caché local
+                if (doc.metadata.fromCache) {
+                    console.warn("Datos desde caché (posible desconexión)");
+                    strip.classList.remove('connected');
+                } else {
+                    strip.classList.add('connected');
+                    
+                    if (doc.exists()) {
+                        const data = doc.data();
+                        procesarMensaje(data.current);
+                    }
+                }
+            }, (error) => {
+                console.error("Error Firestore:", error);
+                strip.classList.remove('connected');
+            });
+
+            window.addEventListener('offline', () => strip.classList.remove('connected'));
+            
+            window.addEventListener('online', () => {
+                console.log("Red recuperada, esperando a Firestore...");
+            });
+        };
+        
+        // --- 3. PROCESADOR DE MENSAJES ---
+        function procesarMensaje(rawString) {
+            if (!rawString) return;
+
+            const parts = rawString.split(',');
+            if (parts.length !== 2) return;
+
+            const codigo = parseInt(parts[0]);
+            const timestampMensajeSec = parseInt(parts[1]);
+
+            // --- NUEVA VALIDACIÓN: TIEMPO DE EXPIRACIÓN ---
+            const ahoraSec = Math.floor(Date.now() / 1000);
+            const antiguedad = ahoraSec - timestampMensajeSec;
+
+            if (antiguedad > 120) {
+                console.warn(`Mensaje descartado por antigüedad (${antiguedad}s):`, rawString);
+                return;
+            }
+            // ----------------------------------------------
+
+            if (timestampMensajeSec === ultimoTimestampProcesado) return;
+            ultimoTimestampProcesado = timestampMensajeSec;
+
+            const dateObj = new Date(timestampMensajeSec * 1000);
+
+            if (codigo === 101) {
+                activarAlerta(dateObj);
+            } else if (codigo === 102) {
+                activarPrueba();
+            }
+        }
+
+        // --- 4. FUNCIONES VISUALES Y AUDIO ---
+        function activarAlerta(dateObj) {
+            const options = {
+                timeZone: 'America/Mexico_City',
+                year: 'numeric', month: '2-digit', day: '2-digit',
+                hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+            };
+            alertTimestamp.textContent = new Intl.DateTimeFormat('es-MX', options).format(dateObj);
+
+            alertView.style.display = 'flex';
+            
+            audioAlert.currentTime = 0;
+            audioAlert.play().catch(e => console.log("Error audio:", e));
+        }
+
+        function activarPrueba() {
+            audioTest.currentTime = 0;
+            audioTest.play().catch(e => console.log("Error audio:", e));
+        }
+    </script>
+
+    <script>
+        // --- RELOJ ---
+        function updateClock() {
+            const now = new Date();
+            
+            const timeOptions = {
+                timeZone: 'America/Mexico_City',
+                hour: '2-digit', minute: '2-digit', second: '2-digit',
+                hour12: false
+            };
+            const dateOptions = {
+                timeZone: 'America/Mexico_City',
+                weekday: 'long', year: 'numeric', month: 'long', day: 'numeric'
+            };
+
+            const timeString = new Intl.DateTimeFormat('es-MX', timeOptions).format(now);
+            const dateString = new Intl.DateTimeFormat('es-MX', dateOptions).format(now);
+
+            document.getElementById('time-display').textContent = timeString;
+            document.getElementById('date-display').textContent = dateString;
+
+            requestAnimationFrame(updateClock);
+        }
+
+        // --- GESTIÓN DE INTERACCIÓN ---
+        function iniciarSistema() {
+            document.getElementById('start-overlay').style.display = 'none';
+            updateClock();
+            if(window.iniciarListener) window.iniciarListener();
+            
+            const a = document.getElementById('audio-test');
+            a.play().catch(e => console.log("Error audio:", e));
+        }
+
+        function cerrarAlerta() {
+            document.getElementById('alert-view').style.display = 'none';
+            const audio = document.getElementById('audio-alert');
+            audio.pause();
+            audio.currentTime = 0;
+        }
+    </script>
+</body>
+</html>

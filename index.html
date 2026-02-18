@@ -293,15 +293,11 @@
 
             alertView.style.display = 'flex';
             
-            audioAlert.muted = false;
-            audioAlert.volume = 1.0;
             audioAlert.currentTime = 0;
             audioAlert.play().catch(e => console.log("Error audio:", e));
         }
 
         function activarPrueba() {
-            audioAlert.muted = false;
-            audioAlert.volume = 1.0;
             audioTest.currentTime = 0;
             audioTest.play().catch(e => console.log("Error audio:", e));
         }
@@ -350,15 +346,23 @@
             ];
 
             audios.forEach(audio => {
-                audio.muted = true; // Silenciar para no asustar
+                // 1. Empezamos en silencio
+                audio.muted = true;
+                
+                // 2. Reproducimos (el navegador lo permite por el clic)
                 audio.play().then(() => {
-                    // Si reproduce con éxito, pausamos y quitamos silencio
-                    // para que estén listos cuando llegue la alerta real
+                    // 3. Pausamos inmediatamente
                     audio.pause();
+                    // 4. Rebobinamos al inicio
                     audio.currentTime = 0;
-                    // audio.muted = false; 
+                    
+                    // 5. ¡AQUÍ QUITAMOS EL SILENCIO! 
+                    // Como esto ocurre dentro de la cadena del clic, Safari lo permite.
+                    // El audio queda: Cargado, Pausado, y CON VOLUMEN (listo para luego).
+                    audio.muted = false; 
+                    
                 }).catch(error => {
-                    console.log("Error desbloqueando audio en iOS:", error);
+                    console.error("Error inicializando audio:", error);
                 });
             });
 

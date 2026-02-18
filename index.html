@@ -293,11 +293,13 @@
 
             alertView.style.display = 'flex';
             
+            audioAlert.muted = false;
             audioAlert.currentTime = 0;
             audioAlert.play().catch(e => console.log("Error audio:", e));
         }
 
         function activarPrueba() {
+            audioAlert.muted = false;
             audioTest.currentTime = 0;
             audioTest.play().catch(e => console.log("Error audio:", e));
         }
@@ -352,7 +354,7 @@
                     // para que estén listos cuando llegue la alerta real
                     audio.pause();
                     audio.currentTime = 0;
-                    audio.muted = false; 
+                    // audio.muted = false; 
                 }).catch(error => {
                     console.log("Error desbloqueando audio en iOS:", error);
                 });
